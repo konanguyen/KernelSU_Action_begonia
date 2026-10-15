@@ -1,101 +1,77 @@
-**中文** | [English](README_EN.md)
+[Tiếng Việt](README_VI.md)
 
 # KernelSU Action For Begonia
 
-用于 Non-GKI Kernel 的 Action，具有一定的普遍性，需要了解内核及 Android 的相关知识得以运用。
+GitHub Action + local Docker build for the Redmi Note 8 Pro (`begonia`, MT6785, kernel `4.14`) with [ReSukiSU](https://github.com/ReSukiSU/ReSukiSU).
 
-## 警告:warning: :warning: :warning:
+## Toolchain (verified)
 
-如果你不是内核作者，使用他人的劳动成果构建KernelSU，请仅供自己使用，不要分享给别人，这是对作者的劳动成果的尊重。
+| Component | Source |
+|---|---|
+| Clang 22 | [ZyCromerZ/Clang](https://github.com/ZyCromerZ/Clang) `22.0.0git-20250928` |
+| GCC 64-bit | `konanguyen/aarch64-linux-android-4.9` (`CROSS_COMPILE`) |
+| GCC 32-bit | `konanguyen/arm-linux-androideabi-4.9` (`CROSS_COMPILE_ARM32`) |
+| Kernel | `konanguyen/android_kernel_xiaomi_begonia@Suzaku-bka` |
+| AnyKernel3 | `konanguyen/AnyKernel3_begonia` (device-checked for `begonia`) |
 
-## 支持内核
+Note: `CC=clang`, the GCC toolchains are only used as backend (`--gcc-toolchain`, assembler, linker, `libgcc`). The `gcc` driver binary itself is not required.
 
-- `4.19`
-- `4.14`
+## Usage (GitHub Action)
 
-## 使用
+1. Fork this repository.
+2. Edit `config.env` (source, branch, defconfig, `ENABLE_KERNELSU`, ...).
+3. Open the `Actions` tab → `Build Kernel` → `Run workflow`.
+4. Artifacts: `Image.gz-dtb`, `AnyKernel3` flashable zip (and `dtbo`/`boot.img` when enabled). Flash the zip in TWRP/OrangeFox.
 
-> 编译成功后，会在`Action`上传 AnyKernel3，已经关闭设备检查，请在 Twrp 刷入。
+### `config.env` options
 
-Fork 本仓库到你的储存库然后按照以下内容编辑config.env，之后点击`Star`或`Action`，在左侧可看见`Build Kernel`选项，点击选项会看见右边的大对话框的上面会有`Run workflows`点击它会启动构建。
+| Key | Meaning | Example |
+|---|---|---|
+| `KERNEL_SOURCE` / `KERNEL_SOURCE_BRANCH` | Kernel repo and branch | `.../android_kernel_xiaomi_begonia`, `Suzaku-bka` |
+| `KERNEL_CONFIG` | Defconfig name | `begonia_user_defconfig` |
+| `ARCH` | Target arch | `arm64` |
+| `KERNEL_FILE` | Output image, matches `BOARD_KERNEL_IMAGE_NAME` | `Image.gz-dtb` |
+| `EXTRA_BUILD_COMMAND` | Extra make flags, space separated | `LD=ld.lld` |
+| `DISABLE-LTO` | Set `true` to disable LTO when it breaks the build | `false` |
+| `ENABLE_KERNELSU` | Run ReSukiSU `setup.sh` | `true` |
+| `APPLY_KSU_PATCH` | Apply `patches.sh` manual hooks + `CONFIG_KSU=y` (idempotent) | `true` |
+| `ADD_KPROBES_CONFIG` | Inject kprobes options into defconfig | `false` |
+| `ADD_OVERLAYFS_CONFIG` | Inject overlayfs option into defconfig | `false` |
+| `DISABLE_CC_WERROR` | Force `CONFIG_CC_WERROR=n` | `true` |
+| `MAKE_BOOT_IMAGE` / `SOURCE_BOOT_IMAGE` | Repack `boot.img` from a working source boot image | empty / URL |
 
-### Kernel Source
+## Usage (local Docker, same environment as CI)
 
-填写你的内核仓库地址
+```bash
+# Build the image (downloads Clang + GCC + kernel source once)
+docker compose build
 
-例如: https://github.com/begonia-dev/android_kernel_xiaomi_mt6785
+# Full kernel build, output goes to ./out/ (gitignored)
+docker compose run --rm kernel
 
-### Kernel Source Branch
+# Follow logs
+tail -f /tmp/opencode/begonia-kernel-ksu.log  # or plain: docker compose run --rm kernel
+ls -lh out/arch/arm64/boot/Image.gz-dtb
+```
 
-填写你的内核分支
+Equivalent plain Docker commands are in `Dockerfile` and `build-test.sh`.
 
-例如: 13.0
+## Verified result
 
-### Kernel defconfig
+* `Image.gz-dtb` (19M) builds clean with `-j$(nproc --all)`.
+* `CONFIG_KSU=y`, `Image` binary contains `kernelsu.*` symbols.
+* `out/AnyKernel3-begonia-KSU.zip` (21M) flashable via recovery.
 
-填写你的内核配置文件名
+## Warning :warning:
 
-例如: begonia_user_defconfig
+If you build from someone else's kernel source, keep the result for personal use and do not redistribute — respect the author's work.
 
-### Target arch
+## Credits
 
-例如: arm64
-
-### Kernel file
-
-填写需要刷写的 image，一般与你的 aosp-device tree 里的 BOARD_KERNEL_IMAGE_NAME 是一致的
-
-例如: Image.gz-dtb
-
-### Clang version
-
-默认版本为zyc clang18.0.0，如果需要更改，可前往build-kernel.yml进行修改
-
-一般 Clang12 就能通过大部分 4.14 及以上的内核的编译
-我自己的 Redmi Note 8 Pro 4.14 使用的是 clang18.0.0
-
-### Extra build commands
-
-有的内核需要手动加入一些编译命令，才能正常编译，不需要的话不填写即可
-请在命令与命令之间用空格隔开
-
-例如: LLVM=1 LLVM_IAS=1
-
-### Disable LTO
-
-用于优化内核，但有些时候会导致错误，所以提供禁用它，设置为 true 即禁用
-
-### Use KernelSU
-
-是否使用 KernelSU，用于排查内核故障或单独编译内核
-
-### Use Kprobes
-
-如果你的内核 Kprobes 工作正常这项改成 true 即可自动在 defconfig 注入参数
-
-### Use overlayfs
-
-内核没有该参数的话请启用，模块需要
-
-### Need DTBO
-
-如果你的内核还需要刷入DTBO，请设置为true
-
-### Make boot image
-> 从之前的Workflows合并进来的，可以查看历史提交
-
-设置为true会编译boot.img，需要你提供`Source boot image`
-
-### Source boot image
-
-故名思义，提供一个源系统可以正常开机的 boot 镜像，需要直链，最好是同一套内核源码以及与你当前系统同一套设备树从 aosp 构建出来的。ramdisk 里面包含分区表以及 init，没有的话构建出来的镜像会无法正常引导。
-
-例如: https://raw.githubusercontent.com/xiaoleGun/KernelSU_action/main/boot/boot-wayne-from-Miku-UI-latest.img
-
-## 感谢
-
-- [AnyKernel3](https://github.com/osm0sis/AnyKernel3)
-- [AOSP](https://android.googlesource.com)
-- [KernelSU](https://github.com/tiann/KernelSU)
-- [xiaoxindada](https://github.com/xiaoxindada)
-- [xiaoleGun](https://github.com/xiaoleGun)
+* [AnyKernel3](https://github.com/osm0sis/AnyKernel3)
+* [ReSukiSU](https://github.com/ReSukiSU/ReSukiSU)
+* [ZyCromerZ Clang](https://github.com/ZyCromerZ/Clang)
+* [AOSP](https://android.googlesource.com)
+* [tiann/KernelSU](https://github.com/tiann/KernelSU)
+* [xiaoxindada](https://github.com/xiaoxindada)
+* [xiaoleGun](https://github.com/xiaoleGun)

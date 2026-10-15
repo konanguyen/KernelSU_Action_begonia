@@ -1,0 +1,10 @@
+services:
+  kernel:
+    build: .
+    volumes:
+      # Kernel build output (Image.gz-dtb, etc.) lands here on the host
+      - ./out:/workspace/android-kernel/out
+      # Mounted so local script edits apply without rebuilding the image
+      - ./build-test.sh:/workspace/build-test.sh
+      - ./patches.sh:/workspace/patches.sh
+    command: ./build-test.sh
