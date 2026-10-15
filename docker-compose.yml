@@ -8,3 +8,13 @@ services:
       - ./build-test.sh:/workspace/build-test.sh
       - ./patches.sh:/workspace/patches.sh
     command: ./build-test.sh
+
+  kernel-susfs:
+    build: .
+    volumes:
+      # Separate track for the SUSFS self-port experiments
+      - ./out_testsusfs:/workspace/android-kernel/out
+      - ./build-susfs-test.sh:/workspace/build-test.sh
+      - ./patches.sh:/workspace/patches.sh
+      - ./susfs:/workspace/susfs
+    command: ./build-test.sh
