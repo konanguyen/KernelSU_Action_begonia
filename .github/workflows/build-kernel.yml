@@ -109,6 +109,18 @@ jobs:
             echo "CONFIG_KSU_SUSFS=y" >> $DEFCONFIG
             echo "# CONFIG_KSU_SUSFS_SUS_MAP is not set" >> $DEFCONFIG
         fi
+        # NOTE: defconfig-file edits must precede `make defconfig`,
+        # otherwise they never land in out/.config.
+        if [ ${{ env.ADD_OVERLAYFS_CONFIG }} = true ]; then
+            if ! grep -q "CONFIG_OVERLAY_FS" arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}; then
+                echo "CONFIG_OVERLAY_FS=y" >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
+            fi
+        fi
+        if [ ${{ env.DISABLE_CC_WERROR }} = true ]; then
+            if ! grep -q "CONFIG_CC_WERROR" arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}; then
+                echo "CONFIG_CC_WERROR=n" >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
+            fi
+        fi
         make -j$(nproc --all) O=out ARCH=${{ env.ARCH }} CC=clang ${{ env.KERNEL_CONFIG }}
         if [ ${{ env.APPLY_KSU_PATCH }} = true -a ${{ env.ENABLE_SUSFS }} != true ]; then
             bash $GITHUB_WORKSPACE/patches.sh
@@ -125,17 +137,11 @@ jobs:
             echo "CONFIG_HAVE_KPROBES=y" >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
             echo "CONFIG_KPROBE_EVENTS=y" >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
         fi
-        if [ ${{ env.ADD_OVERLAYFS_CONFIG }} = true ]; then
-            echo "CONFIG_OVERLAY_FS=y" >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
-        fi
         if [ ${{ env.DISABLE-LTO }} = true ]; then
             sed -i 's/CONFIG_LTO=y/CONFIG_LTO=n/' arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
             sed -i 's/CONFIG_LTO_CLANG=y/CONFIG_LTO_CLANG=n/' arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
             sed -i 's/CONFIG_THINLTO=y/CONFIG_THINLTO=n/' arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
             echo "CONFIG_LTO_NONE=y" >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
-        fi
-        if [ ${{ env.DISABLE_CC_WERROR }} = true ]; then
-            echo "CONFIG_CC_WERROR=n" >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
         fi
 
     - name: Build kernel

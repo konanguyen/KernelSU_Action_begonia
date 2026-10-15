@@ -35,9 +35,21 @@ if [ "$ENABLE_SUSFS" = true ]; then
   echo "# CONFIG_KSU_SUSFS_SUS_MAP is not set" >> arch/arm64/configs/begonia_user_defconfig
 fi
 
+# NOTE: defconfig-file edits must happen BEFORE `make defconfig` below,
+# otherwise they never land in out/.config.
+# ADD_OVERLAYFS_CONFIG=true from config.env (required for magic mount)
+if ! grep -q "CONFIG_OVERLAY_FS" arch/arm64/configs/begonia_user_defconfig; then
+echo "CONFIG_OVERLAY_FS=y" >> arch/arm64/configs/begonia_user_defconfig
+fi
+
+# DISABLE_CC_WERROR=true from config.env
+if ! grep -q "CONFIG_CC_WERROR" arch/arm64/configs/begonia_user_defconfig; then
+echo "CONFIG_CC_WERROR=n" >> arch/arm64/configs/begonia_user_defconfig
+fi
+
 echo "=== defconfig (${JOBS} jobs) ==="
 make -j${JOBS} O=out ARCH=arm64 CC=clang begonia_user_defconfig
-grep -E "CONFIG_KSU_SUSFS=y|CONFIG_KSU_MANUAL_HOOK=y" out/.config || true
+grep -E "CONFIG_KSU_SUSFS=y|CONFIG_KSU_MANUAL_HOOK=y|CONFIG_OVERLAY_FS=y|CONFIG_CC_WERROR" out/.config || true
 
 # APPLY_KSU_PATCH=true from config.env (idempotent, skips existing hooks;
 # not needed with SUSFS since convert-hooks.sh already handled them)
@@ -49,14 +61,6 @@ if grep -q "CONFIG_KSU" arch/arm64/configs/begonia_user_defconfig; then
   sed -i 's/CONFIG_KSU=n/CONFIG_KSU=y/g' arch/arm64/configs/begonia_user_defconfig
 else
   echo "CONFIG_KSU=y" >> arch/arm64/configs/begonia_user_defconfig
-fi
-
-# DISABLE_CC_WERROR=true from config.env
-echo "CONFIG_CC_WERROR=n" >> arch/arm64/configs/begonia_user_defconfig || true
-
-# ADD_OVERLAYFS_CONFIG=true from config.env (required for magic mount)
-if ! grep -q "CONFIG_OVERLAY_FS" arch/arm64/configs/begonia_user_defconfig; then
-echo "CONFIG_OVERLAY_FS=y" >> arch/arm64/configs/begonia_user_defconfig
 fi
 
 echo "=== build (${JOBS} jobs, retry on parallel-build flakes) ==="
