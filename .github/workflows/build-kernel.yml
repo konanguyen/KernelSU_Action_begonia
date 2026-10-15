@@ -28,6 +28,7 @@ jobs:
         echo "SOURCE_BOOT_IMAGE=$(cat config.env | grep "SOURCE_BOOT_IMAGE" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
         echo "DISABLE_CC_WERROR=$(cat config.env | grep "DISABLE_CC_WERROR" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
         echo "APPLY_KSU_PATCH=$(cat config.env | grep "APPLY_KSU_PATCH" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
+        echo "ENABLE_SUSFS=$(cat config.env | grep "ENABLE_SUSFS" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
 
     - name: Setup build kernel environment
       run: |
@@ -82,6 +83,14 @@ jobs:
         KSU_VERSION=$(cd KernelSU && expr $(/usr/bin/git rev-list --count HEAD) + 10200)
         echo "UPLOADNAME=-KernelSU_$KSU_VERSION" >> $GITHUB_ENV
 
+    - name: Setup SUSFS
+      if: env.ENABLE_SUSFS == 'true'
+      run: |
+        cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+        bash $GITHUB_WORKSPACE/susfs/convert-hooks.sh
+        bash $GITHUB_WORKSPACE/susfs/apply-susfs.sh
+        echo "UPLOADNAME=${{ env.UPLOADNAME }}-SUSFS" >> $GITHUB_ENV
+
     - name: Setup Configuration for Kernel
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
@@ -94,8 +103,14 @@ jobs:
         export KBUILD_COMPILER_STRING="$(clang --version | head -n 1 | perl -pe 's/\(http.*?\)//gs' | sed -e 's/  */ /g' -e 's/[[:space:]]*$//')"
         export KBUILD_BUILD_HOST=Wuxin-Builds
         export KBUILD_BUILD_USER=$(echo ${{ github.actor }} | tr A-Z a-z)
+        if [ ${{ env.ENABLE_SUSFS }} = true ]; then
+            DEFCONFIG=arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
+            sed -i '/CONFIG_KSU_MANUAL_HOOK/d; /CONFIG_KSU_MANUAL_HOOK_AUTO_/d' $DEFCONFIG
+            echo "CONFIG_KSU_SUSFS=y" >> $DEFCONFIG
+            echo "# CONFIG_KSU_SUSFS_SUS_MAP is not set" >> $DEFCONFIG
+        fi
         make -j$(nproc --all) O=out ARCH=${{ env.ARCH }} CC=clang ${{ env.KERNEL_CONFIG }}
-        if [ ${{ env.APPLY_KSU_PATCH }} = true ]; then
+        if [ ${{ env.APPLY_KSU_PATCH }} = true -a ${{ env.ENABLE_SUSFS }} != true ]; then
             bash $GITHUB_WORKSPACE/patches.sh
             if grep -q "CONFIG_KSU" arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}; then
                 sed -i 's/# CONFIG_KSU is not set/CONFIG_KSU=y/g' arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
@@ -137,7 +152,12 @@ jobs:
         export KBUILD_BUILD_USER=$(echo ${{ github.actor }} | tr A-Z a-z)
         make -j$(nproc --all) O=out ARCH=arm64 savedefconfig
         cp -f out/defconfig arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
-        make -j$(nproc --all) O=out ARCH=${{ env.ARCH }} CC=clang CROSS_COMPILE=aarch64-linux-android- CROSS_COMPILE_ARM32=arm-linux-androideabi- CLANG_TRIPLE=aarch64-linux-gnu- ${{ env.BUILD_EXTRA_COMMAND }}
+        for i in 1 2 3; do
+        make -j$(nproc --all) O=out ARCH=${{ env.ARCH }} CC=clang CROSS_COMPILE=aarch64-linux-android- CROSS_COMPILE_ARM32=arm-linux-androideabi- CLANG_TRIPLE=aarch64-linux-gnu- ${{ env.BUILD_EXTRA_COMMAND }} && break
+        echo "build attempt $i failed, retrying..."
+        sleep 5
+        done
+        [ -f out/arch/${{ env.ARCH }}/boot/${{ env.KERNEL_FILE }} ]
 
     - name: Check a kernel output files
       run: |
