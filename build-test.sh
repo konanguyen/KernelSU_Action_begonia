@@ -20,9 +20,9 @@ which aarch64-linux-android-ld
 which arm-linux-androideabi-elfedit
 clang --version | head -n 2
 
-echo "=== ReSukiSU setup (ENABLE_KERNELSU=true) ==="
+echo "=== BakaSU setup (ENABLE_KERNELSU=true) ==="
 if [ ! -d KernelSU ]; then
-  curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash
+  curl -LSs "https://raw.githubusercontent.com/Baka-SU/BakaSU/main/kernel/setup.sh" | bash
 fi
 
 echo "=== defconfig (${JOBS} jobs) ==="

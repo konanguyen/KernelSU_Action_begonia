@@ -2,7 +2,7 @@
 
 # KernelSU Action cho Begonia
 
-GitHub Action + build Docker local cho Redmi Note 8 Pro (`begonia`, MT6785, kernel `4.14`) tích hợp [ReSukiSU](https://github.com/ReSukiSU/ReSukiSU).
+GitHub Action + build Docker local cho Redmi Note 8 Pro (`begonia`, MT6785, kernel `4.14`) tích hợp [BakaSU](https://github.com/Baka-SU/BakaSU).
 
 ## Toolchain (đã verify)
 
@@ -33,7 +33,7 @@ Lưu ý: `CC=clang`, toolchain GCC chỉ làm backend (`--gcc-toolchain`, assemb
 | `KERNEL_FILE` | File image output, khớp `BOARD_KERNEL_IMAGE_NAME` | `Image.gz-dtb` |
 | `EXTRA_BUILD_COMMAND` | Flag make thêm, cách nhau bằng space | `LD=ld.lld` |
 | `DISABLE-LTO` | `true` để tắt LTO khi build lỗi | `false` |
-| `ENABLE_KERNELSU` | Chạy `setup.sh` của ReSukiSU | `true` |
+| `ENABLE_KERNELSU` | Chạy `setup.sh` của BakaSU | `true` |
 | `APPLY_KSU_PATCH` | Chạy `patches.sh` + `CONFIG_KSU=y` (idempotent) | `true` |
 | `ADD_KPROBES_CONFIG` | Tự chèn kprobes vào defconfig | `false` |
 | `ADD_OVERLAYFS_CONFIG` | Tự chèn overlayfs vào defconfig | `false` |
@@ -67,7 +67,7 @@ Nếu dùng source của người khác để build, chỉ dùng cá nhân, khô
 ## Credits
 
 * [AnyKernel3](https://github.com/osm0sis/AnyKernel3)
-* [ReSukiSU](https://github.com/ReSukiSU/ReSukiSU)
+* [BakaSU](https://github.com/Baka-SU/BakaSU)
 * [ZyCromerZ Clang](https://github.com/ZyCromerZ/Clang)
 * [AOSP](https://android.googlesource.com)
 * [tiann/KernelSU](https://github.com/tiann/KernelSU)
